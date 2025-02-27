@@ -59,13 +59,19 @@ public abstract class UserBase implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     List<Comment> comments;
 
+    @OneToMany(mappedBy = "sender", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<Chat> chatsAsSender;
+
+    @OneToMany(mappedBy = "receiver", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<Chat> chatsAsReceiver;
+
     public void addComment(Comment comment) {
         comment.setUser(this);
         this.comments.add(comment);
     }
 
     public void addXp(Long xpToAdd) {
-        if (this.xp == null ||this.xp < 0) {
+        if (this.xp == null || this.xp < 0) {
             this.xp = 0L;
         }
         this.xp += xpToAdd;
