@@ -1,5 +1,7 @@
 package com.ecolink.spring.service;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,10 @@ public class ChatService {
 
     public void createComment(Message message) {
         messageRepository.save(message);
+    }
+
+    public List<Chat> findAllBySender(UserBase user) {
+        return repository.findAllBySender(user);
     }
 
 }

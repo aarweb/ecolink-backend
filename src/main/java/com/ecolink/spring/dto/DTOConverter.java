@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.ecolink.spring.entity.Category;
 import com.ecolink.spring.entity.Challenge;
+import com.ecolink.spring.entity.Chat;
 import com.ecolink.spring.entity.Client;
 import com.ecolink.spring.entity.ClientMission;
 import com.ecolink.spring.entity.Comment;
@@ -378,5 +379,18 @@ public class DTOConverter {
 
     public UserPendingDTO convertStartupToUserPendingDto(Startup startup) {
         return modelMapper.map(startup, UserPendingDTO.class);
+    }
+
+    public ChatListDTO convertChatToChatListDTO(Chat chat, UserBase loggedUser){
+        ChatListDTO chatListDTO = modelMapper.map(chat, ChatListDTO.class);
+        if (loggedUser.getId() == chat.getReceiver().getId()) {
+            chatListDTO.setName(chat.getSender().getName());
+            chatListDTO.setImageUrl(chat.getSender().getImageUrl());
+        } else {
+            chatListDTO.setName(chat.getReceiver().getName());
+            chatListDTO.setImageUrl(chat.getReceiver().getImageUrl());
+        }
+
+        return chatListDTO;
     }
 }
