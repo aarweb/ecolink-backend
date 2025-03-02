@@ -3,9 +3,12 @@ package com.ecolink.spring.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.socket.WebSocketSession;
 
 import com.ecolink.spring.dto.ChatListDTO;
+import com.ecolink.spring.dto.ChatMessage;
 import com.ecolink.spring.dto.DTOConverter;
+import com.ecolink.spring.dto.MessageDTO;
 import com.ecolink.spring.entity.Chat;
 import com.ecolink.spring.entity.Message;
 import com.ecolink.spring.entity.UserBase;
@@ -16,17 +19,19 @@ import com.ecolink.spring.service.UserBaseService;
 
 import lombok.RequiredArgsConstructor;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,44 +43,28 @@ public class ChatController {
     private final SimpMessagingTemplate messagingTemplate;
     private final DTOConverter dtoConverter;
 
-    @PostMapping("/{id}/message")
-    public ResponseEntity<?> sendMessage(@AuthenticationPrincipal UserBase user, @PathVariable Long id,
-            @RequestParam String content) {
+    @MessageMapping("/chat/{chat_id}/message")
+    @SendTo("/topic/chat/{chat_id}")
+    public ChatMessage sendMessage(@Payload ChatMessage message, @DestinationVariable String chat_id,
+            SimpMessageHeaderAccessor headerAccessor) {
+        // Obtener id
+        Long senderId = Long.parseLong(headerAccessor.getSessionAttributes().get("userId").toString());
 
-        if (user == null) {
-            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
-                    "The user must be logged in");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        UserBase sender = userBaseService.findById(senderId).orElse(null);
+        Chat chat = service.findById(Long.parseLong(chat_id));
+
+        if (sender == null || chat == null) {
+            return null;
         }
 
-        UserBase receiver = userBaseService.findById(id).orElse(null);
-
-        if (receiver == null) {
-            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.NOT_FOUND.value(),
-                    "The receiver doesn't not exists");
-
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorDetails);
+        if (chat.getSender().getId() != senderId && chat.getReceiver().getId() != senderId) {
+            return null;
         }
 
-        Chat chat = service.findChatBySenderAndReceiver(user, receiver);
-        if (chat == null) {
-            chat = new Chat(user, receiver);
-            service.save(chat);
-        }
+        message.setTimestamp(String.valueOf(System.currentTimeMillis()));
+        
 
-        if (content == null || content.length() <= 0) {
-            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(), "The content is required");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDetails);
-        }
-
-        Message message = new Message(chat, user, content);
-        service.createComment(message);
-
-        messagingTemplate.convertAndSend("/topic/chat/" + id, message);
-
-        SuccessDetails successDetails = new SuccessDetails(HttpStatus.OK.value(), "Message sent successfully");
-
-        return ResponseEntity.ok(successDetails);
+        return message;
     }
 
     @GetMapping
@@ -86,10 +75,10 @@ public class ChatController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
         }
 
-        List<Chat> chats = service.findAllBySender(user);
-        
-        List<ChatListDTO> chatsListDTO =  chats.stream().map(chat -> dtoConverter.convertChatToChatListDTO(chat, user))
-                    .collect(Collectors.toList());
+        List<Chat> chats = service.findAllByUser(user);
+
+        List<ChatListDTO> chatsListDTO = chats.stream().map(chat -> dtoConverter.convertChatToChatListDTO(chat, user))
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(chatsListDTO);
 

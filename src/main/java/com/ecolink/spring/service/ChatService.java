@@ -31,8 +31,11 @@ public class ChatService {
         messageRepository.save(message);
     }
 
-    public List<Chat> findAllBySender(UserBase user) {
-        return repository.findAllBySender(user);
+    public List<Chat> findAllByUser(UserBase user) {
+        return repository.findAllBySenderOrReceiver(user, user);
     }
 
+    public Chat findById(Long chatId) {
+        return repository.findById(chatId).orElse(null);
+    }
 }

@@ -14,17 +14,23 @@ public class MainConfiguration {
     }
 
     @Bean
-    protected WebMvcConfigurer corsConfigurer(){
+    protected WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
-            public void addCorsMappings(CorsRegistry registry){
+            public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                    .allowedOrigins("http://localhost:4200")
-                    .allowedMethods("GET", "POST", "PUT", "DELETE")
-                    .allowedHeaders("Authorization", "Content-Type")
-                    .exposedHeaders("Set-Cookie")
-                    .allowCredentials(true)
-                    .maxAge(3600);
+                        .allowedOrigins("http://localhost:4200")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE")
+                        .allowedHeaders("Authorization", "Content-Type")
+                        .exposedHeaders("Set-Cookie")
+                        .allowCredentials(true)
+                        .maxAge(3600);
+
+                registry.addMapping("/chat/**")
+                        .allowedOrigins("http://localhost:4200")
+                        .allowCredentials(true)
+                        .maxAge(3600);
+
             }
         };
     }

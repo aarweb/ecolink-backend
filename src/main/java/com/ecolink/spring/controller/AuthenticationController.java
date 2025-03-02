@@ -126,7 +126,7 @@ public class AuthenticationController {
             String jwtToken = tokenProvider.generateToken(authentication);
 
             ResponseCookie jwtCookie = ResponseCookie.from("jwt", jwtToken)
-                    .httpOnly(true)
+                    .httpOnly(false)
                     .secure(false)
                     .path("/")
                     .maxAge(30 * 24 * 60 * 60)

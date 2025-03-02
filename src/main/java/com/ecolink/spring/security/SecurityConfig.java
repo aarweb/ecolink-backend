@@ -45,7 +45,7 @@ public class SecurityConfig {
 						// .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN")
 						// .requestMatchers(HttpMethod.GET, "/api/challenge/**")
 						// .hasAnyAuthority("ROLE_COMPANY", "ROLE_STARTUP")
-
+						.requestMatchers("/api/chat/**").permitAll().requestMatchers("/chat/**").permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class)
 				.csrf(csrf -> csrf.disable())
@@ -56,6 +56,9 @@ public class SecurityConfig {
 						.logoutSuccessUrl("/public")
 						.invalidateHttpSession(true)
 						.permitAll());
+
+			
+
 		return http.build();
 	}
 
