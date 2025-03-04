@@ -392,7 +392,10 @@ public class DTOConverter {
             chatListDTO.setImageUrl(chat.getReceiver().getImageUrl());
         }
 
-        chatListDTO.setLastMessage(chat.getMessages().get(chat.getMessages().size() - 1).getContent());
+        if (chat.getMessages().size() > 0) {
+            chatListDTO.setLastMessage(chat.getMessages().get(chat.getMessages().size() - 1).getContent());
+
+        }
 
         return chatListDTO;
     }
