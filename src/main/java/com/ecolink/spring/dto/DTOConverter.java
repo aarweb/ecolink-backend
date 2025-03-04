@@ -15,6 +15,7 @@ import com.ecolink.spring.entity.ClientMission;
 import com.ecolink.spring.entity.Comment;
 import com.ecolink.spring.entity.Company;
 import com.ecolink.spring.entity.Like;
+import com.ecolink.spring.entity.Message;
 import com.ecolink.spring.entity.Mission;
 import com.ecolink.spring.entity.Ods;
 import com.ecolink.spring.entity.Order;
@@ -381,7 +382,7 @@ public class DTOConverter {
         return modelMapper.map(startup, UserPendingDTO.class);
     }
 
-    public ChatListDTO convertChatToChatListDTO(Chat chat, UserBase loggedUser){
+    public ChatListDTO convertChatToChatListDTO(Chat chat, UserBase loggedUser) {
         ChatListDTO chatListDTO = modelMapper.map(chat, ChatListDTO.class);
         if (loggedUser.getId() == chat.getReceiver().getId()) {
             chatListDTO.setName(chat.getSender().getName());
@@ -391,6 +392,16 @@ public class DTOConverter {
             chatListDTO.setImageUrl(chat.getReceiver().getImageUrl());
         }
 
+        chatListDTO.setLastMessage(chat.getMessages().get(chat.getMessages().size() - 1).getContent());
+
         return chatListDTO;
+    }
+
+    public ChatMessageDTO convertMessageToChatMessageDTO(Message message) {
+        ChatMessageDTO chatMessageDTO = modelMapper.map(message, ChatMessageDTO.class);
+        chatMessageDTO.setTimestamp(message.getTimestamp().toString());
+        chatMessageDTO.setSender(Long.toString(message.getUser().getId()));
+        chatMessageDTO.setContent(message.getContent());
+        return chatMessageDTO;
     }
 }

@@ -34,14 +34,14 @@ public class Message {
 
     private String content;
 
-    private LocalDateTime timespan;
+    private LocalDateTime timestamp;
 
 
     public Message(Chat chat, UserBase user, String content) {
         this.chat = chat;
         this.user = user;
         this.content = content;
-        this.timespan = LocalDateTime.now();
+        this.timestamp = LocalDateTime.now();
     }
 
 }

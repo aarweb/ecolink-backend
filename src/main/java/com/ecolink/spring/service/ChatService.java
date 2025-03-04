@@ -27,6 +27,10 @@ public class ChatService {
         repository.save(chat);
     }
 
+    public void saveMessage(Message message){
+        messageRepository.save(message);
+    }
+
     public void createComment(Message message) {
         messageRepository.save(message);
     }
@@ -37,5 +41,9 @@ public class ChatService {
 
     public Chat findById(Long chatId) {
         return repository.findById(chatId).orElse(null);
+    }
+
+    public List<Message> findMessagesByChat(Chat chat) {
+        return messageRepository.findAllByChat(chat);
     }
 }

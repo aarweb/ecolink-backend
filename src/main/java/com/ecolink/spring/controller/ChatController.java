@@ -1,24 +1,21 @@
 package com.ecolink.spring.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.socket.WebSocketSession;
 
 import com.ecolink.spring.dto.ChatListDTO;
-import com.ecolink.spring.dto.ChatMessage;
+import com.ecolink.spring.dto.ChatMessageDTO;
 import com.ecolink.spring.dto.DTOConverter;
-import com.ecolink.spring.dto.MessageDTO;
 import com.ecolink.spring.entity.Chat;
 import com.ecolink.spring.entity.Message;
 import com.ecolink.spring.entity.UserBase;
 import com.ecolink.spring.exception.ErrorDetails;
-import com.ecolink.spring.response.SuccessDetails;
 import com.ecolink.spring.service.ChatService;
 import com.ecolink.spring.service.UserBaseService;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,6 +29,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequiredArgsConstructor
@@ -45,7 +43,7 @@ public class ChatController {
 
     @MessageMapping("/chat/{chat_id}/message")
     @SendTo("/topic/chat/{chat_id}")
-    public ChatMessage sendMessage(@Payload ChatMessage message, @DestinationVariable String chat_id,
+    public ChatMessageDTO sendMessage(@Payload ChatMessageDTO message, @DestinationVariable String chat_id,
             SimpMessageHeaderAccessor headerAccessor) {
         // Obtener id
         Long senderId = Long.parseLong(headerAccessor.getSessionAttributes().get("userId").toString());
@@ -62,7 +60,9 @@ public class ChatController {
         }
 
         message.setTimestamp(String.valueOf(System.currentTimeMillis()));
-        
+
+        Message newMessage = new Message(chat, sender, message.getContent());
+        service.saveMessage(newMessage);
 
         return message;
     }
@@ -82,5 +82,39 @@ public class ChatController {
 
         return ResponseEntity.ok(chatsListDTO);
 
+    }
+
+    @GetMapping("/messages/{id}")
+    public ResponseEntity<?> getMessages(@AuthenticationPrincipal UserBase user, @PathVariable Long id) {
+        if (user == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
+                    "The user must be logged in");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        Chat chat = service.findById(id);
+
+        if (chat == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.NOT_FOUND.value(),
+                    "Chat not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorDetails);
+        }
+
+        if (chat.getSender().getId() != user.getId() && chat.getReceiver().getId() != user.getId()) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
+                    "User not authorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        List<Message> messages = service.findMessagesByChat(chat);
+        if (messages == null) {
+            messages = new ArrayList<Message>();
+        }
+        List<ChatMessageDTO> messagesDTO = messages.stream()
+                .map(message -> dtoConverter.convertMessageToChatMessageDTO(message))
+                .collect(Collectors.toList());
+                
+
+        return ResponseEntity.ok(messagesDTO);
     }
 }

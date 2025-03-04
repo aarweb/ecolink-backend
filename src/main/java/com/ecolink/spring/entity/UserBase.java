@@ -71,7 +71,7 @@ public abstract class UserBase implements UserDetails {
         comment.setUser(this);
         this.comments.add(comment);
     }
-
+    
     public void addXp(Long xpToAdd) {
         if (this.xp == null || this.xp < 0) {
             this.xp = 0L;
