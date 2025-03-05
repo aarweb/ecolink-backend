@@ -1,6 +1,7 @@
 package com.ecolink.spring.dto;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -339,6 +340,10 @@ public class DTOConverter {
         return modelMapper.map(user, GetUserDTO.class);
     }
 
+    public GetUserFrontDTO convertUserBaseToDto(UserBase user) {
+        return modelMapper.map(user, GetUserFrontDTO.class);
+    }
+
     public GetUserFrontDTO convertClientBaseToDto(Client client) {
         return modelMapper.map(client, GetUserFrontDTO.class);
     }
@@ -402,7 +407,7 @@ public class DTOConverter {
 
     public ChatMessageDTO convertMessageToChatMessageDTO(Message message) {
         ChatMessageDTO chatMessageDTO = modelMapper.map(message, ChatMessageDTO.class);
-        chatMessageDTO.setTimestamp(message.getTimestamp().toString());
+        chatMessageDTO.setTimestamp(message.getTimestamp());
         chatMessageDTO.setSender(Long.toString(message.getUser().getId()));
         chatMessageDTO.setContent(message.getContent());
         return chatMessageDTO;

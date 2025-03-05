@@ -1,6 +1,8 @@
 package com.ecolink.spring.dto;
 
 
+import java.time.LocalDateTime;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +11,5 @@ import lombok.Setter;
 public class ChatMessageDTO {
     private String content;
     private String sender;
-    private String timestamp;
-
+    private LocalDateTime timestamp;
 }

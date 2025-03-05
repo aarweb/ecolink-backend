@@ -6,15 +6,20 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ecolink.spring.dto.ChatListDTO;
 import com.ecolink.spring.dto.ChatMessageDTO;
 import com.ecolink.spring.dto.DTOConverter;
+import com.ecolink.spring.dto.GetUserFrontDTO;
+import com.ecolink.spring.dto.MessageDTO;
 import com.ecolink.spring.entity.Chat;
 import com.ecolink.spring.entity.Message;
 import com.ecolink.spring.entity.UserBase;
+import com.ecolink.spring.entity.UserType;
 import com.ecolink.spring.exception.ErrorDetails;
+import com.ecolink.spring.response.SuccessDetails;
 import com.ecolink.spring.service.ChatService;
 import com.ecolink.spring.service.UserBaseService;
 
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,10 +31,11 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,14 +44,13 @@ public class ChatController {
 
     private final ChatService service;
     private final UserBaseService userBaseService;
-    private final SimpMessagingTemplate messagingTemplate;
     private final DTOConverter dtoConverter;
 
     @MessageMapping("/chat/{chat_id}/message")
     @SendTo("/topic/chat/{chat_id}")
     public ChatMessageDTO sendMessage(@Payload ChatMessageDTO message, @DestinationVariable String chat_id,
             SimpMessageHeaderAccessor headerAccessor) {
-        // Obtener id
+
         Long senderId = Long.parseLong(headerAccessor.getSessionAttributes().get("userId").toString());
 
         UserBase sender = userBaseService.findById(senderId).orElse(null);
@@ -59,7 +64,7 @@ public class ChatController {
             return null;
         }
 
-        message.setTimestamp(String.valueOf(System.currentTimeMillis()));
+        message.setTimestamp(LocalDateTime.now());
 
         Message newMessage = new Message(chat, sender, message.getContent());
         service.saveMessage(newMessage);
@@ -113,8 +118,85 @@ public class ChatController {
         List<ChatMessageDTO> messagesDTO = messages.stream()
                 .map(message -> dtoConverter.convertMessageToChatMessageDTO(message))
                 .collect(Collectors.toList());
-                
 
         return ResponseEntity.ok(messagesDTO);
+    }
+
+    @GetMapping("/new/{id}")
+    public ResponseEntity<?> getNewChat(@AuthenticationPrincipal UserBase user, @PathVariable Long id) {
+        if (user == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
+                    "The user must be logged in");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        UserBase receiver = userBaseService.findById(id).orElse(null);
+
+        if (receiver == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.NOT_FOUND.value(),
+                    "User not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorDetails);
+        }
+
+        if (!receiver.getUserType().equals(UserType.COMPANY) && !receiver.getUserType().equals(UserType.STARTUP)) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(),
+                    "User not authorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        Chat chat = service.findChatBySenderAndReceiver(user, receiver);
+
+        if (chat != null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(),
+                    "Chat already exists");
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDetails);
+        }
+
+        GetUserFrontDTO userDTO = dtoConverter.convertUserBaseToDto(receiver);
+
+        return ResponseEntity.ok(userDTO);
+    }
+
+    @PostMapping("/new/{id}")
+    private ResponseEntity<?> createChat(@AuthenticationPrincipal UserBase user, @PathVariable Long id,
+            @RequestBody MessageDTO message) {
+        if (user == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
+                    "The user must be logged in");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        UserBase receiver = userBaseService.findById(id).orElse(null);
+
+        if (receiver == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.NOT_FOUND.value(),
+                    "User not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorDetails);
+        }
+
+        if (!receiver.getUserType().equals(UserType.COMPANY) && !receiver.getUserType().equals(UserType.STARTUP)) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(),
+                    "User not authorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        Chat chat = service.findChatBySenderAndReceiver(user, receiver);
+        if (chat != null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(),
+                    "Chat already exists");
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDetails);
+        }
+
+        Chat newChat = new Chat(user, receiver);
+        service.save(newChat);
+        Message newMessage = new Message(newChat, user, message.getMessage());
+
+        service.saveMessage(newMessage);
+
+
+        SuccessDetails successDetails = new SuccessDetails(HttpStatus.OK.value(), "Chat created successfully");
+        return ResponseEntity.ok(successDetails);
     }
 }
