@@ -36,12 +36,15 @@ public class Message {
 
     private LocalDateTime timestamp;
 
+    private boolean read;
+
 
     public Message(Chat chat, UserBase user, String content) {
         this.chat = chat;
         this.user = user;
         this.content = content;
         this.timestamp = LocalDateTime.now();
+        this.read = false;
     }
 
 }

@@ -64,7 +64,7 @@ public class ChatController {
             return null;
         }
 
-        if (message.getContent() == null || message.getContent().isEmpty() ||message.getContent().length() > 255) {
+        if (message.getContent() == null || message.getContent().isEmpty() || message.getContent().length() > 255) {
             return null;
         }
 
@@ -72,6 +72,50 @@ public class ChatController {
 
         Message newMessage = new Message(chat, sender, message.getContent());
         service.saveMessage(newMessage);
+
+        ChatMessageDTO newMessageDTO = dtoConverter.convertMessageToChatMessageDTO(newMessage);
+
+        return newMessageDTO;
+    }
+
+    @MessageMapping("/chat/{chat_id}/read")
+    @SendTo("/topic/chat/{chat_id}")
+    public ChatMessageDTO readMessage(@Payload ChatMessageDTO message, @DestinationVariable String chat_id,
+            SimpMessageHeaderAccessor headerAccessor) {
+        Long senderId = Long.parseLong(headerAccessor.getSessionAttributes().get("userId").toString());
+
+        UserBase sender = userBaseService.findById(senderId).orElse(null);
+        Chat chat = service.findById(Long.parseLong(chat_id));
+
+        if (sender == null || chat == null) {
+            return null;
+        }
+
+        
+        if (chat.getSender().getId() != senderId && chat.getReceiver().getId() != senderId) {
+            return null;
+        }
+
+        if (message == null || message.getId() == null) {
+            return null;
+        }
+
+        Message readMessage = service.findMessageById(message.getId());
+        if (readMessage == null) {
+            return null;
+        }
+
+        if (readMessage.getChat().getId() != chat.getId()) {
+            return null;
+        }
+
+        if (readMessage.getUser().getId() == senderId) {
+            return null;
+        }
+
+        readMessage.setRead(true);
+
+        service.saveMessage(readMessage);
 
         return message;
     }
@@ -151,10 +195,8 @@ public class ChatController {
         Chat chat = service.findChatBySenderAndReceiver(user, receiver);
 
         if (chat != null) {
-            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(),
-                    "Chat already exists");
-
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDetails);
+            ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(chat, user);
+            return ResponseEntity.ok(chatListDTO);
         }
 
         GetUserFrontDTO userDTO = dtoConverter.convertUserBaseToDto(receiver);
@@ -198,7 +240,6 @@ public class ChatController {
         Message newMessage = new Message(newChat, user, message.getMessage());
 
         service.saveMessage(newMessage);
-
 
         ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(newChat, user);
         return ResponseEntity.ok(chatListDTO);

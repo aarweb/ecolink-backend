@@ -410,6 +410,7 @@ public class DTOConverter {
         chatMessageDTO.setTimestamp(message.getTimestamp());
         chatMessageDTO.setSender(Long.toString(message.getUser().getId()));
         chatMessageDTO.setContent(message.getContent());
+        chatMessageDTO.setRead(message.isRead());
         return chatMessageDTO;
     }
 }
