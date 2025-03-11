@@ -64,6 +64,10 @@ public class ChatController {
             return null;
         }
 
+        if (message.getContent() == null || message.getContent().isEmpty() ||message.getContent().length() > 255) {
+            return null;
+        }
+
         message.setTimestamp(LocalDateTime.now());
 
         Message newMessage = new Message(chat, sender, message.getContent());
@@ -196,7 +200,7 @@ public class ChatController {
         service.saveMessage(newMessage);
 
 
-        SuccessDetails successDetails = new SuccessDetails(HttpStatus.OK.value(), "Chat created successfully");
-        return ResponseEntity.ok(successDetails);
+        ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(newChat, user);
+        return ResponseEntity.ok(chatListDTO);
     }
 }
