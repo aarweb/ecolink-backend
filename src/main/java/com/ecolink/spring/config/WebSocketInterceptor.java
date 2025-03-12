@@ -1,6 +1,7 @@
 package com.ecolink.spring.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.SecurityProperties.User;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -30,6 +31,7 @@ public class WebSocketInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         try {
+            boolean isNewChat = false;
             StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
             Map<String, List<String>> headers = accessor.toNativeHeaderMap();
 
@@ -59,6 +61,12 @@ public class WebSocketInterceptor implements ChannelInterceptor {
                                         if (parts.length > 3) {
                                             chatIdStr = parts[3];
                                         }
+
+                                        if (parts.length >= 4) {
+                                            if (parts[4].equals("new")) {
+                                                isNewChat = true;
+                                            }
+                                        }
                                     }
 
                                     if (chatIdStr == null) {
@@ -67,7 +75,19 @@ public class WebSocketInterceptor implements ChannelInterceptor {
 
                                     Long chatId = Long.parseLong(chatIdStr);
 
-                                    Chat chat = chatService.findById(chatId);
+
+                                    Chat chat = null;
+
+                                    if (isNewChat) {
+                                        System.out.println("Nuevo chat");
+                                        UserBase receiver = userBaseService.findById(chatId).orElse(null);
+                                        if (receiver == null) {
+                                            throw new RuntimeException("Usuario no encontrado");
+                                        }
+                                        chat = chatService.findChatBySenderAndReceiver(user, receiver);
+                                    } else {
+                                        chat = chatService.findById(chatId);
+                                    }
 
                                     if (chat == null) {
                                         throw new RuntimeException("Chat no encontrado");
@@ -77,6 +97,8 @@ public class WebSocketInterceptor implements ChannelInterceptor {
                                             || chat.getReceiver().getId() == user.getId()) {
                                         accessor.getSessionAttributes().put("userId", id_user);
                                     } else {
+                                        System.out.println("Chat Sender y Receiver" + chat.getSender().getId() + " - "
+                                                + chat.getReceiver().getId() + " - " + user.getId());
                                         throw new RuntimeException("Usuario no autorizado");
                                     }
                                 }

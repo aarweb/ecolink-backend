@@ -91,7 +91,6 @@ public class ChatController {
             return null;
         }
 
-        
         if (chat.getSender().getId() != senderId && chat.getReceiver().getId() != senderId) {
             return null;
         }
@@ -120,6 +119,39 @@ public class ChatController {
         return message;
     }
 
+    @MessageMapping("/chat/{receiver_id}/new")
+    @SendTo("/topic/chat/{receiver_id}/new")
+    public ChatListDTO notifyNewChat(@DestinationVariable Long receiver_id, SimpMessageHeaderAccessor headerAccessor) {
+        Long senderId = Long.parseLong(headerAccessor.getSessionAttributes().get("userId").toString());
+
+        UserBase sender = userBaseService.findById(senderId).orElse(null);
+        UserBase receiver = userBaseService.findById(receiver_id).orElse(null);
+
+        
+
+        if (sender == null || receiver == null) {
+            return null;
+        }
+
+        if (!receiver.getUserType().equals(UserType.COMPANY) && !receiver.getUserType().equals(UserType.STARTUP)) {
+            return null;
+        }
+
+
+        Chat chat = service.findChatBySenderAndReceiver(sender, receiver);
+
+        
+        if (chat == null) {
+            return null;
+        }
+   
+        List<Message> messages = service.findMessagesByChat(chat);
+        ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(chat, receiver, messages);
+
+        
+        return chatListDTO;
+    }
+
     @GetMapping
     public ResponseEntity<?> getChats(@AuthenticationPrincipal UserBase user) {
         if (user == null) {
@@ -129,8 +161,12 @@ public class ChatController {
         }
 
         List<Chat> chats = service.findAllByUser(user);
-
-        List<ChatListDTO> chatsListDTO = chats.stream().map(chat -> dtoConverter.convertChatToChatListDTO(chat, user))
+        
+        List<ChatListDTO> chatsListDTO = chats.stream()
+                .map(chat -> {
+                    List<Message> messages = service.findMessagesByChat(chat);
+                    return dtoConverter.convertChatToChatListDTO(chat, user, messages);
+                })
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(chatsListDTO);
@@ -195,7 +231,8 @@ public class ChatController {
         Chat chat = service.findChatBySenderAndReceiver(user, receiver);
 
         if (chat != null) {
-            ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(chat, user);
+            List<Message> messages = service.findMessagesByChat(chat);
+            ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(chat, user, messages);
             return ResponseEntity.ok(chatListDTO);
         }
 
@@ -240,8 +277,10 @@ public class ChatController {
         Message newMessage = new Message(newChat, user, message.getMessage());
 
         service.saveMessage(newMessage);
-
-        ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(newChat, user);
+        List<Message> messages = new ArrayList<>();
+        messages.add(newMessage);
+        
+        ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(newChat, user, messages);
         return ResponseEntity.ok(chatListDTO);
     }
 }

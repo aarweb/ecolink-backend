@@ -387,7 +387,7 @@ public class DTOConverter {
         return modelMapper.map(startup, UserPendingDTO.class);
     }
 
-    public ChatListDTO convertChatToChatListDTO(Chat chat, UserBase loggedUser) {
+    public ChatListDTO convertChatToChatListDTO(Chat chat, UserBase loggedUser, List<Message> messages) {
         ChatListDTO chatListDTO = modelMapper.map(chat, ChatListDTO.class);
         if (loggedUser.getId() == chat.getReceiver().getId()) {
             chatListDTO.setName(chat.getSender().getName());
@@ -397,9 +397,8 @@ public class DTOConverter {
             chatListDTO.setImageUrl(chat.getReceiver().getImageUrl());
         }
 
-        if (chat.getMessages().size() > 0) {
-            chatListDTO.setLastMessage(chat.getMessages().get(chat.getMessages().size() - 1).getContent());
-
+        if (messages.size() > 0) {
+            chatListDTO.setLastMessage(messages.get(messages.size() - 1).getContent());
         }
 
         return chatListDTO;

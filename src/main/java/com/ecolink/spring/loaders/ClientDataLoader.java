@@ -42,7 +42,6 @@ public class ClientDataLoader implements CommandLineRunner {
                                 new Client("Fiona Gallagher", "fiona@example.com"),
                                 new Client("George Miller", "george@example.com"),
                                 new Client("Hannah Baker", "hannah@example.com"));
-
                 clients.forEach(client -> {
                         if (!service.existByEmail(client.getEmail())) {
                                 List<Ods> odsList = new ArrayList<>();
