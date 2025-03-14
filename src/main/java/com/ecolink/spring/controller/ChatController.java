@@ -1,7 +1,9 @@
 package com.ecolink.spring.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.ecolink.spring.dto.ChatListDTO;
 import com.ecolink.spring.dto.ChatMessageDTO;
@@ -10,12 +12,16 @@ import com.ecolink.spring.dto.GetUserFrontDTO;
 import com.ecolink.spring.dto.MessageDTO;
 import com.ecolink.spring.entity.Chat;
 import com.ecolink.spring.entity.Message;
+import com.ecolink.spring.entity.MessageType;
 import com.ecolink.spring.entity.UserBase;
 import com.ecolink.spring.entity.UserType;
 import com.ecolink.spring.exception.ErrorDetails;
+import com.ecolink.spring.exception.ImageNotValidExtension;
+import com.ecolink.spring.exception.ImageSubmitError;
 import com.ecolink.spring.response.SuccessDetails;
 import com.ecolink.spring.service.ChatService;
 import com.ecolink.spring.service.UserBaseService;
+import com.ecolink.spring.utils.Images;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -45,6 +52,10 @@ public class ChatController {
     private final ChatService service;
     private final UserBaseService userBaseService;
     private final DTOConverter dtoConverter;
+    private final Images images;
+
+    @Value("${spring.message.upload.dir}")
+    private String uploadMessageDir;
 
     @MessageMapping("/chat/{chat_id}/message")
     @SendTo("/topic/chat/{chat_id}")
@@ -70,7 +81,16 @@ public class ChatController {
 
         message.setTimestamp(LocalDateTime.now());
 
-        Message newMessage = new Message(chat, sender, message.getContent());
+        if (message.getType() == null || (!message.getType().equals("TEXT") && !message.getType().equals("IMAGE"))) {
+            return null;
+        }
+
+        MessageType type = message.getType().equals("TEXT") ? MessageType.TEXT : MessageType.IMAGE;
+
+        System.out.println("Type: " + type);
+
+        Message newMessage = new Message(chat, sender, message.getContent(), type);
+        
         service.saveMessage(newMessage);
 
         ChatMessageDTO newMessageDTO = dtoConverter.convertMessageToChatMessageDTO(newMessage);
@@ -127,8 +147,6 @@ public class ChatController {
         UserBase sender = userBaseService.findById(senderId).orElse(null);
         UserBase receiver = userBaseService.findById(receiver_id).orElse(null);
 
-        
-
         if (sender == null || receiver == null) {
             return null;
         }
@@ -137,18 +155,15 @@ public class ChatController {
             return null;
         }
 
-
         Chat chat = service.findChatBySenderAndReceiver(sender, receiver);
 
-        
         if (chat == null) {
             return null;
         }
-   
+
         List<Message> messages = service.findMessagesByChat(chat);
         ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(chat, receiver, messages);
 
-        
         return chatListDTO;
     }
 
@@ -161,7 +176,7 @@ public class ChatController {
         }
 
         List<Chat> chats = service.findAllByUser(user);
-        
+
         List<ChatListDTO> chatsListDTO = chats.stream()
                 .map(chat -> {
                     List<Message> messages = service.findMessagesByChat(chat);
@@ -274,13 +289,65 @@ public class ChatController {
 
         Chat newChat = new Chat(user, receiver);
         service.save(newChat);
-        Message newMessage = new Message(newChat, user, message.getMessage());
+
+        Message newMessage = new Message(newChat, user, message.getMessage(), MessageType.TEXT);
 
         service.saveMessage(newMessage);
         List<Message> messages = new ArrayList<>();
         messages.add(newMessage);
-        
+
         ChatListDTO chatListDTO = dtoConverter.convertChatToChatListDTO(newChat, user, messages);
         return ResponseEntity.ok(chatListDTO);
+    }
+
+    @PostMapping("{id}/image")
+    public ResponseEntity<?> sendImage(@AuthenticationPrincipal UserBase user, @PathVariable Long id,
+            @RequestPart("image") MultipartFile image) {
+        if (user == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
+                    "The user must be logged in");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        if (id == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(),
+                    "Chat id is required");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDetails);
+        }
+
+        if (image == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.BAD_REQUEST.value(),
+                    "Image is required");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDetails);
+        }
+
+        Chat chat = service.findById(id);
+
+        if (chat == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.NOT_FOUND.value(),
+                    "Chat not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorDetails);
+        }
+
+        if (chat.getSender().getId() != user.getId() && chat.getReceiver().getId() != user.getId()) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
+                    "User not authorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        String urlImage = null;
+
+        if (!images.isExtensionImageValid(image)) {
+            throw new ImageNotValidExtension("The extension is invalid");
+        }
+
+        urlImage = images.uploadFile(image, uploadMessageDir);
+        if (urlImage == null || urlImage.isEmpty()) {
+            throw new ImageSubmitError("Error to submit the image");
+        }
+
+        SuccessDetails successDetails = new SuccessDetails(HttpStatus.OK.value(), urlImage);
+
+        return ResponseEntity.ok().body(successDetails);
     }
 }

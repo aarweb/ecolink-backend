@@ -30,6 +30,8 @@ public class ImageController {
     private String uploadProductDir;
     @Value("${spring.post.upload.dir}")
     private String uploadPostDir;
+    @Value("${spring.message.upload.dir}")
+    private String uploadMessageDir;
 
     @GetMapping
     public ResponseEntity<?> findImage(@RequestParam String type, @RequestParam String name_image) {
@@ -49,6 +51,9 @@ public class ImageController {
                     break;
                 case "post":
                     full_url = Paths.get(baseDir, uploadPostDir, name_image).toString();
+                    break;
+                case "message":
+                    full_url = Paths.get(baseDir, uploadMessageDir, name_image).toString();
                     break;
             }
 

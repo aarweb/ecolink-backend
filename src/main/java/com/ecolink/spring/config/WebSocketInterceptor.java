@@ -75,11 +75,9 @@ public class WebSocketInterceptor implements ChannelInterceptor {
 
                                     Long chatId = Long.parseLong(chatIdStr);
 
-
                                     Chat chat = null;
 
                                     if (isNewChat) {
-                                        System.out.println("Nuevo chat");
                                         UserBase receiver = userBaseService.findById(chatId).orElse(null);
                                         if (receiver == null) {
                                             throw new RuntimeException("Usuario no encontrado");

@@ -3,6 +3,8 @@ package com.ecolink.spring.entity;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -38,13 +40,17 @@ public class Message {
 
     private boolean read;
 
+    @Enumerated(EnumType.STRING)
+    private MessageType type;
 
-    public Message(Chat chat, UserBase user, String content) {
+
+    public Message(Chat chat, UserBase user, String content, MessageType type) {
         this.chat = chat;
         this.user = user;
         this.content = content;
         this.timestamp = LocalDateTime.now();
         this.read = false;
+        this.type = type;
     }
 
 }
