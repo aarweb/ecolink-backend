@@ -2,7 +2,6 @@ package com.ecolink.spring.dto;
 
 import java.time.LocalDate;
 
-import com.ecolink.spring.entity.Startup;
 import com.ecolink.spring.entity.Status;
 
 import lombok.Getter;

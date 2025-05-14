@@ -11,4 +11,5 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     List<Message> findAllByChat(Chat chat);
 
+    List<Message> findTop10ByChatAndIsReadFalseOrderByTimestampDesc(Chat chat);
 }

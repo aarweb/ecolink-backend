@@ -90,7 +90,7 @@ public class ChatController {
         System.out.println("Type: " + type);
 
         Message newMessage = new Message(chat, sender, message.getContent(), type);
-        
+
         service.saveMessage(newMessage);
 
         ChatMessageDTO newMessageDTO = dtoConverter.convertMessageToChatMessageDTO(newMessage);
@@ -349,5 +349,33 @@ public class ChatController {
         SuccessDetails successDetails = new SuccessDetails(HttpStatus.OK.value(), urlImage);
 
         return ResponseEntity.ok().body(successDetails);
+    }
+
+@GetMapping("/unread")
+    public ResponseEntity<?> getUnreadMessages(@AuthenticationPrincipal UserBase user) {
+        if (user == null) {
+            ErrorDetails errorDetails = new ErrorDetails(HttpStatus.UNAUTHORIZED.value(),
+                    "The user must be logged in");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
+        }
+
+        List<Chat> chats = service.findAllByUser(user);
+
+        List<Message> unreadMessages = new ArrayList<>();
+
+        for (Chat chat : chats) {
+            List<Message> messages = service.findTop10UnreadMessages(chat);
+            // Eliminar los mensajes qu el sender es el mismo que el usuario
+            messages = messages.stream()
+                    .filter(message -> message.getUser().getId() != user.getId())
+                    .collect(Collectors.toList());
+            unreadMessages.addAll(messages);
+        }
+
+        List<ChatMessageDTO> unreadMessagesDTO = unreadMessages.stream()
+                .map(message -> dtoConverter.convertMessageToChatMessageDTO(message))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(unreadMessagesDTO);
     }
 }

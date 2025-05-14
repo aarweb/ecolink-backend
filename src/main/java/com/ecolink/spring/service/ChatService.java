@@ -50,4 +50,8 @@ public class ChatService {
     public Message findMessageById(Long messageId) {
         return messageRepository.findById(messageId).orElse(null);
     }
+
+    public List<Message> findTop10UnreadMessages(Chat chat) {
+        return messageRepository.findTop10ByChatAndIsReadFalseOrderByTimestampDesc(chat);
+    }
 }
