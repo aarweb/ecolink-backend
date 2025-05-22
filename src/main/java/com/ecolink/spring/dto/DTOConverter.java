@@ -43,7 +43,6 @@ public class DTOConverter {
 
         if (product.getImageUrl() == null || product.getImageUrl().isEmpty()) {
             productDto.setImageUrl("productdefault.png");
-
         }
         return productDto;
     }

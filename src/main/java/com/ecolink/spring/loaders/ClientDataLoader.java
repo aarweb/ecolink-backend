@@ -17,7 +17,6 @@ import com.ecolink.spring.service.OdsService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-
 @Component
 @RequiredArgsConstructor
 @Order(10)
